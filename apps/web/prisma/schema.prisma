@@ -18,3 +18,151 @@ datasource db {
 //   url      = env("DATABASE_URL")
 // }
 
+// ================================
+// ENUMS
+// ================================
+
+enum Side {
+  BUY
+  SELL
+}
+
+enum OrderStatus {
+  PENDING   // Just created
+  QUEUED    // Assigned to batch, waiting inclusion publish
+  INCLUDED  // In published inclusion list
+  FILLED    // Fully filled
+  PARTIAL   // Partially filled
+  CANCELED  // User canceled
+  EXPIRED   // Past cutoff without fill
+}
+
+enum BatchPlanStatus {
+  PLANNED              // AOT slot reserved
+  INCLUSION_PUBLISHED  // Merkle root published
+  EXECUTED            // Settlement complete
+  FAILED              // Settlement failed
+}
+
+// ================================
+// MODELS
+// ================================
+
+model User {
+  id        String   @id @default(cuid())
+  wallet    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  orders    Order[]
+  
+  @@index([wallet])
+}
+
+model Market {
+  id           String   @id @default(cuid())
+  symbol       String   @unique // e.g., "SOL-USDC"
+  baseMint     String   // Base token mint address
+  quoteMint    String   // Quote token mint address
+  tickSize     Decimal  // Minimum price increment
+  cadenceSec   Int      // Batch cadence in seconds (e.g., 1)
+  feeBps       Int      // Fee in basis points (e.g., 10 = 0.1%)
+  minNotional  Decimal  @default(1.0) // Minimum order size in quote currency
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  plannedBatches PlannedBatch[]
+  orders         Order[]
+  batches        Batch[]
+  
+  @@index([symbol])
+  @@index([active])
+}
+
+model PlannedBatch {
+  id            String          @id @default(cuid())
+  marketId      String
+  slot          Int             // Solana slot number
+  eta           DateTime        // Expected execution time (derived from slot)
+  status        BatchPlanStatus @default(PLANNED)
+  raikuResId    String?         // Raiku reservation ID / receipt handle
+  merkleRoot    String?         // Merkle root of included orders
+  inclusionTime DateTime?       // When inclusion was published
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  market        Market          @relation(fields: [marketId], references: [id])
+  orders        Order[]         // Orders targeting this batch
+  
+  @@unique([marketId, slot])
+  @@index([marketId, status])
+  @@index([slot])
+  @@index([eta])
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  userId         String
+  marketId       String
+  side           Side
+  qty            Decimal     // Quantity in base currency
+  limitPx        Decimal?    // Limit price (null = market order)
+  salt           String      // Client-generated salt for commitment
+  commitment     String      // Hash(salt + order params)
+  status         OrderStatus @default(PENDING)
+  plannedBatchId String?     // The batch it's targeting
+  merkleLeafIdx  Int?        // Index in the inclusion Merkle tree
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  
+  user           User          @relation(fields: [userId], references: [id])
+  market         Market        @relation(fields: [marketId], references: [id])
+  plannedBatch   PlannedBatch? @relation(fields: [plannedBatchId], references: [id])
+  fills          Fill[]
+  
+  @@index([userId, status])
+  @@index([marketId, status])
+  @@index([plannedBatchId])
+  @@index([commitment])
+  @@index([createdAt])
+}
+
+model Batch {
+  id           String   @id @default(cuid())
+  marketId     String
+  slot         Int      @unique // Solana slot where settlement occurred
+  merkleRoot   String   // Merkle root of all included orders
+  clearingPx   Decimal  // Uniform clearing price
+  totalBase    Decimal  // Total traded base quantity
+  totalQuote   Decimal  // Total traded quote quantity
+  txSig        String   // Solana transaction signature
+  blockTime    DateTime // Actual block time from chain
+  createdAt    DateTime @default(now())
+  
+  market       Market   @relation(fields: [marketId], references: [id])
+  fills        Fill[]
+  
+  @@unique([marketId, slot])
+  @@index([marketId])
+  @@index([slot])
+  @@index([blockTime])
+}
+
+model Fill {
+  id          String   @id @default(cuid())
+  orderId     String
+  batchId     String
+  filledQty   Decimal  // Quantity filled
+  avgFillPx   Decimal  // Average fill price (should equal clearing price)
+  feePaid     Decimal  @default(0) // Fee paid in quote currency
+  createdAt   DateTime @default(now())
+  
+  order       Order    @relation(fields: [orderId], references: [id])
+  batch       Batch    @relation(fields: [batchId], references: [id])
+  
+  @@unique([orderId, batchId]) // One fill per order per batch
+  @@index([orderId])
+  @@index([batchId])
+}
+

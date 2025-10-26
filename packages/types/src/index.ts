@@ -2,23 +2,9 @@
  * Shared TypeScript types for Fairlane DEX
  */
 
-// Order types
-export type Side = "BUY" | "SELL"
-
-export type OrderStatus = 
-  | "PENDING"      // Just created
-  | "QUEUED"       // Assigned to batch, waiting inclusion publish
-  | "INCLUDED"     // In published inclusion list
-  | "FILLED"       // Fully filled
-  | "PARTIAL"      // Partially filled
-  | "CANCELED"     // User canceled
-  | "EXPIRED"      // Past cutoff without fill
-
-export type BatchPlanStatus =
-  | "PLANNED"               // AOT slot reserved
-  | "INCLUSION_PUBLISHED"   // Merkle root published
-  | "EXECUTED"              // Settlement complete
-  | "FAILED"                // Settlement failed
+// Re-export Prisma enums and types
+export { Side, OrderStatus, BatchPlanStatus } from "@prisma/client"
+export type { User, Market, Order, PlannedBatch, Batch, Fill } from "@prisma/client"
 
 export interface OrderCommitment {
   readonly id: string
