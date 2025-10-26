@@ -1,0 +1,20 @@
+// Fairlane DEX - Prisma Schema
+// This is your Prisma schema file for the deterministic batch auction DEX
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// SQLite for local dev (fast, zero-config)
+// Switch to PostgreSQL for production by uncommenting below
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// For PostgreSQL (production):
+// datasource db {
+//   provider = "postgresql"
+//   url      = env("DATABASE_URL")
+// }
+
