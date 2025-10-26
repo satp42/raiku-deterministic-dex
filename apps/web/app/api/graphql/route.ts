@@ -1,23 +1,23 @@
 import { ApolloServer } from '@apollo/server'
 import { startServerAndCreateNextHandler } from '@as-integrations/next'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+import { resolvers } from '../../../graphql/resolvers'
+import { createContext } from '../../../graphql/context'
+
+// Read the schema from file
+const schemaPath = '/Users/satwik/Desktop/raiku_hackathon/apps/web/graphql/schema.graphql'
+const typeDefs = readFileSync(schemaPath, 'utf8')
 
 // Create the Apollo Server instance
 const server = new ApolloServer({
-  typeDefs: `
-    type Query {
-      hello: String
-    }
-  `,
-  resolvers: {
-    Query: {
-      hello: () => 'world'
-    }
-  }
+  typeDefs,
+  resolvers,
 })
 
 // Start the server and create the Next.js handler
 const handler = startServerAndCreateNextHandler(server, {
-  context: async (req) => ({}),
+  context: async (req) => createContext(),
 })
 
 export async function POST(request: Request) {

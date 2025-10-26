@@ -1,0 +1,513 @@
+"""
+Fairlane DEX - Deterministic Batch Auction Schema
+"""
+type Query {
+  """
+  Get all active markets
+  """
+  markets: [Market!]!
+
+  """
+  Get the next planned batch for a specific market symbol
+  """
+  nextBatch(symbol: String!): PlannedBatch
+
+  """
+  Get market by symbol
+  """
+  market(symbol: String!): Market
+
+  """
+  Get order status by ID
+  """
+  orderStatus(orderId: String!): Order
+
+  """
+  Get batch history for a market
+  """
+  batchHistory(symbol: String!, limit: Int = 10): [Batch!]!
+}
+
+type Mutation {
+  """
+  Commit a new order (creates commitment hash)
+  """
+  commitOrder(input: CommitOrderInput!): CommitOrderPayload!
+
+  """
+  Cancel a pending order
+  """
+  cancelOrder(orderId: String!): CancelOrderPayload!
+
+  """
+  Register a new user wallet
+  """
+  registerUser(wallet: String!): RegisterUserPayload!
+}
+
+"""
+Input for committing a new order
+"""
+input CommitOrderInput {
+  """
+  Market symbol (e.g., "SOL-USDC")
+  """
+  symbol: String!
+
+  """
+  Order side
+  """
+  side: Side!
+
+  """
+  Order quantity in base currency
+  """
+  qty: String!
+
+  """
+  Limit price (null for market orders)
+  """
+  limitPx: String
+
+  """
+  User wallet address
+  """
+  wallet: String!
+
+  """
+  Client-generated salt for commitment
+  """
+  salt: String!
+}
+
+"""
+Response for commitOrder mutation
+"""
+type CommitOrderPayload {
+  """
+  The created order
+  """
+  order: Order!
+
+  """
+  The planned batch this order targets
+  """
+  plannedBatch: PlannedBatch!
+
+  """
+  Commitment hash (for verification)
+  """
+  commitment: String!
+}
+
+"""
+Response for cancelOrder mutation
+"""
+type CancelOrderPayload {
+  """
+  Success status
+  """
+  success: Boolean!
+
+  """
+  Error message if failed
+  """
+  message: String
+}
+
+"""
+Response for registerUser mutation
+"""
+type RegisterUserPayload {
+  """
+  The created user
+  """
+  user: User!
+
+  """
+  Success status
+  """
+  success: Boolean!
+}
+
+"""
+Market configuration
+"""
+type Market {
+  """
+  Unique identifier
+  """
+  id: String!
+
+  """
+  Market symbol (e.g., "SOL-USDC")
+  """
+  symbol: String!
+
+  """
+  Base token mint address
+  """
+  baseMint: String!
+
+  """
+  Quote token mint address
+  """
+  quoteMint: String!
+
+  """
+  Minimum price increment
+  """
+  tickSize: String!
+
+  """
+  Batch cadence in seconds
+  """
+  cadenceSec: Int!
+
+  """
+  Fee in basis points
+  """
+  feeBps: Int!
+
+  """
+  Minimum order size in quote currency
+  """
+  minNotional: String!
+
+  """
+  Whether market is active
+  """
+  active: Boolean!
+
+  """
+  Creation timestamp
+  """
+  createdAt: String!
+
+  """
+  Last update timestamp
+  """
+  updatedAt: String!
+}
+
+"""
+Order representation
+"""
+type Order {
+  """
+  Unique identifier
+  """
+  id: String!
+
+  """
+  User who placed the order
+  """
+  user: User!
+
+  """
+  Market for this order
+  """
+  market: Market!
+
+  """
+  Order side
+  """
+  side: Side!
+
+  """
+  Quantity in base currency
+  """
+  qty: String!
+
+  """
+  Limit price (null for market orders)
+  """
+  limitPx: String
+
+  """
+  Client-generated salt
+  """
+  salt: String
+
+  """
+  Commitment hash
+  """
+  commitment: String!
+
+  """
+  Current order status
+  """
+  status: OrderStatus!
+
+  """
+  Planned batch this order targets
+  """
+  plannedBatch: PlannedBatch
+
+  """
+  Index in the Merkle tree (when included)
+  """
+  merkleLeafIdx: Int
+
+  """
+  Creation timestamp
+  """
+  createdAt: String!
+
+  """
+  Last update timestamp
+  """
+  updatedAt: String!
+}
+
+"""
+Batch settlement record
+"""
+type Batch {
+  """
+  Unique identifier
+  """
+  id: String!
+
+  """
+  Market for this batch
+  """
+  market: Market!
+
+  """
+  Solana slot number
+  """
+  slot: String!
+
+  """
+  Merkle root of included orders
+  """
+  merkleRoot: String!
+
+  """
+  Uniform clearing price
+  """
+  clearingPx: String!
+
+  """
+  Total traded base quantity
+  """
+  totalBase: String!
+
+  """
+  Total traded quote quantity
+  """
+  totalQuote: String!
+
+  """
+  Transaction signature
+  """
+  txSig: String!
+
+  """
+  Block timestamp
+  """
+  blockTime: String!
+
+  """
+  Creation timestamp
+  """
+  createdAt: String!
+}
+
+"""
+Planned batch configuration
+"""
+type PlannedBatch {
+  """
+  Unique identifier
+  """
+  id: String!
+
+  """
+  Market for this batch
+  """
+  market: Market!
+
+  """
+  Solana slot number
+  """
+  slot: String!
+
+  """
+  Expected execution time
+  """
+  eta: String!
+
+  """
+  Current status
+  """
+  status: BatchPlanStatus!
+
+  """
+  Raiku reservation ID
+  """
+  raikuResId: String
+
+  """
+  Merkle root (when published)
+  """
+  merkleRoot: String
+
+  """
+  When inclusion was published
+  """
+  inclusionTime: String
+
+  """
+  Creation timestamp
+  """
+  createdAt: String!
+
+  """
+  Last update timestamp
+  """
+  updatedAt: String!
+}
+
+"""
+User account
+"""
+type User {
+  """
+  Unique identifier
+  """
+  id: String!
+
+  """
+  Wallet address
+  """
+  wallet: String!
+
+  """
+  Creation timestamp
+  """
+  createdAt: String!
+
+  """
+  Last update timestamp
+  """
+  updatedAt: String!
+}
+
+"""
+Order side enumeration
+"""
+enum Side {
+  BUY
+  SELL
+}
+
+"""
+Order status enumeration
+"""
+enum OrderStatus {
+  PENDING
+  QUEUED
+  INCLUDED
+  FILLED
+  PARTIAL
+  CANCELED
+  EXPIRED
+}
+
+"""
+Batch plan status enumeration
+"""
+enum BatchPlanStatus {
+  PLANNED
+  INCLUSION_PUBLISHED
+  EXECUTED
+  FAILED
+}
+
+"""
+Subscription for real-time updates
+"""
+type Subscription {
+  """
+  Subscribe to batch updates for a specific market
+  """
+  batchUpdates(symbol: String!): BatchUpdate!
+
+  """
+  Subscribe to order status updates
+  """
+  orderUpdates(orderId: String!): OrderUpdate!
+}
+
+"""
+Batch update payload
+"""
+type BatchUpdate {
+  """
+  Market symbol
+  """
+  symbol: String!
+
+  """
+  Event type
+  """
+  event: BatchEvent!
+
+  """
+  Batch data
+  """
+  batch: PlannedBatch
+
+  """
+  Timestamp
+  """
+  timestamp: String!
+}
+
+"""
+Order update payload
+"""
+type OrderUpdate {
+  """
+  Order ID
+  """
+  orderId: String!
+
+  """
+  Event type
+  """
+  event: OrderEvent!
+
+  """
+  Order data
+  """
+  order: Order
+
+  """
+  Timestamp
+  """
+  timestamp: String!
+}
+
+"""
+Batch event types
+"""
+enum BatchEvent {
+  COUNTDOWN_TICK
+  INCLUSION_PUBLISHED
+  BATCH_SETTLED
+  BATCH_FAILED
+}
+
+"""
+Order event types
+"""
+enum OrderEvent {
+  COMMITTED
+  INCLUDED
+  SETTLED
+  CANCELED
+  EXPIRED
+}
