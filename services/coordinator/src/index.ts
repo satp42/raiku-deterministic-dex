@@ -7,6 +7,7 @@
 
 import * as dotenv from "dotenv"
 import { PrismaClient } from "@prisma/client"
+import { batchPlanner } from "./batchPlanner"
 
 // Load environment variables
 dotenv.config()
@@ -16,6 +17,9 @@ interface CoordinatorConfig {
   environment: string
   port?: number
   logLevel: string
+  batchLookAhead: number
+  batchPlanInterval: number
+  cutoffLeadMs: number
 }
 
 class CoordinatorService {
@@ -51,6 +55,9 @@ class CoordinatorService {
       environment: process.env.NODE_ENV || "development",
       port: parseInt(process.env.PORT || "3001", 10),
       logLevel: process.env.LOG_LEVEL || "info",
+      batchLookAhead: parseInt(process.env.BATCH_LOOK_AHEAD || "10", 10),
+      batchPlanInterval: parseInt(process.env.BATCH_PLAN_INTERVAL || "1000", 10),
+      cutoffLeadMs: parseInt(process.env.CUTOFF_LEAD_MS || "500", 10),
     }
   }
 
@@ -60,6 +67,9 @@ class CoordinatorService {
       console.log(`   Environment: ${this.config.environment}`)
       console.log(`   Database: ${this.config.databaseUrl.replace(/\/\/.*@/, "//***:***@")}`)
       console.log(`   Log Level: ${this.config.logLevel}`)
+      console.log(`   Batch Look Ahead: ${this.config.batchLookAhead} batches`)
+      console.log(`   Batch Plan Interval: ${this.config.batchPlanInterval}ms`)
+      console.log(`   Cutoff Lead: ${this.config.cutoffLeadMs}ms`)
 
       // Test database connection
       await this.testDatabaseConnection()
@@ -67,10 +77,11 @@ class CoordinatorService {
       // Load and log markets
       await this.logMarkets()
 
-      // Start main coordination loop (placeholder for now)
-      await this.startCoordinationLoop()
+      // Start batch planner with configuration
+      batchPlanner.start()
 
       console.log("✅ Coordinator service started successfully")
+      console.log("   Batch planner active - reserving AOT slots")
       console.log("   Press Ctrl+C to stop")
 
     } catch (error) {
@@ -154,19 +165,6 @@ class CoordinatorService {
     }
   }
 
-  private async startCoordinationLoop(): Promise<void> {
-    console.log("🔄 Starting coordination loop...")
-
-    // TODO: Implement actual coordination logic
-    // For now, just log that we're running
-    console.log("   Coordinator loop active (placeholder)")
-    console.log("   Next steps: batch planner, inclusion publisher, batch executor")
-
-    // Keep the service alive
-    return new Promise(() => {
-      // This promise never resolves, keeping the service running
-    })
-  }
 
   async shutdown(): Promise<void> {
     if (this.isShuttingDown) return
@@ -175,6 +173,10 @@ class CoordinatorService {
     console.log("\n🛑 Shutting down coordinator...")
 
     try {
+      // Stop batch planner
+      batchPlanner.stop()
+      console.log("✅ Batch planner stopped")
+
       await this.prisma.$disconnect()
       console.log("✅ Database disconnected")
     } catch (error) {
@@ -190,6 +192,7 @@ class CoordinatorService {
       environment: this.config.environment,
       databaseConnected: this.prisma.$isConnected(),
       config: this.config,
+      batchPlanner: batchPlanner.getStatus(),
     }
   }
 }

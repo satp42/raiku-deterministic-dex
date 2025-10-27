@@ -31,6 +31,13 @@ The batch coordination service that manages Raiku slot reservations and batch ex
    LOG_LEVEL="info"
    ```
 
+   Batch Planner Settings:
+   ```env
+   BATCH_LOOK_AHEAD=10        # Number of future batches to plan
+   BATCH_PLAN_INTERVAL=1000   # Planning check interval (ms)
+   CUTOFF_LEAD_MS=500        # Lead time before batch to stop accepting orders
+   ```
+
 3. **Build** (optional):
    ```bash
    npm run build
@@ -53,19 +60,23 @@ npm start
 # Test coordinator functionality
 tsx scripts/test-coordinator.ts
 
+# Test batch planner integration
+tsx scripts/test-batch-planner.ts
+
 # Test full boot (blocks indefinitely)
 tsx scripts/test-coordinator.ts --full
 ```
 
 ## What It Does
 
-1. **Loads Environment**: Reads DATABASE_URL and other config
+1. **Loads Environment**: Reads DATABASE_URL and batch planning configuration
 2. **Connects to Database**: Tests Prisma connection
 3. **Logs Markets**: Displays all active markets with:
    - Market details (symbol, tokens, cadence, fees)
    - Order counts (total, planned, settled)
    - Next planned batches with slots and ETAs
-4. **Starts Coordination Loop**: Placeholder for batch planning logic
+4. **Starts Batch Planner**: Automatically reserves AOT slots via Raiku SDK
+5. **Maintains Rolling Schedule**: Continuously plans future batches per market cadence
 
 ## Output Example
 
@@ -74,6 +85,9 @@ tsx scripts/test-coordinator.ts --full
    Environment: development
    Database: file:***:***@../apps/web/prisma/dev.db
    Log Level: info
+   Batch Look Ahead: 10 batches
+   Batch Plan Interval: 1000ms
+   Cutoff Lead: 500ms
 
 ✅ Database connection established
 
@@ -93,11 +107,25 @@ tsx scripts/test-coordinator.ts --full
        📋 Slot 12347 (ETA: 32s)
        📋 Slot 12349 (ETA: 34s)
 
-🔄 Starting coordination loop...
-   Coordinator loop active (placeholder)
-   Next steps: batch planner, inclusion publisher, batch executor
+🗓️  Starting Batch Planner...
+   Look ahead: 10 batches
+   Plan interval: 1000ms
+   Cutoff lead: 500ms
+
+📋 Planning batches for 1 markets
+
+📊 SOL-USDC: 3 future batches, need 7 new
+
+🎯 Planning SOL-USDC batch at 2025-10-27T10:30:35.000Z (slot 12351)
+✅ SOL-USDC batch 12351 reserved (Raiku: aot_1234567890_abc123def)
+
+🎯 Planning SOL-USDC batch at 2025-10-27T10:30:36.000Z (slot 12354)
+✅ SOL-USDC batch 12354 reserved (Raiku: aot_1234567891_xyz456ghi)
+
+...
 
 ✅ Coordinator service started successfully
+   Batch planner active - reserving AOT slots
    Press Ctrl+C to stop
 ```
 
@@ -106,14 +134,15 @@ tsx scripts/test-coordinator.ts --full
 The coordinator service is designed to work with:
 
 - **Web App Database**: Uses same Prisma schema and database
-- **Raiku Scheduler**: Will integrate with the Raiku slot reservation system
+- **Raiku Client & Scheduler**: Integrates with the Raiku SDK for AOT slot reservations
 - **GraphQL API**: Provides backend coordination for the frontend
+- **Batch Planning**: Maintains rolling PlannedBatch records for deterministic execution
 
 ## Next Steps
 
-Once running, the coordinator will be extended with:
+The coordinator now includes batch planning! Further extensions:
 
-1. **Batch Planner**: Uses Raiku SDK to reserve AOT slots
-2. **Inclusion Publisher**: Publishes Merkle roots before slot execution
-3. **Batch Executor**: Executes settlements at reserved slots
-4. **Receipt Handler**: Processes Raiku receipts and updates database
+1. **Inclusion Publisher**: Publishes Merkle roots before slot execution
+2. **Batch Executor**: Executes settlements at reserved slots
+3. **Receipt Handler**: Processes Raiku receipts and updates database
+4. **Order Assignment**: Routes incoming orders to appropriate planned batches
