@@ -1,0 +1,32 @@
+{
+  "name": "coordinator",
+  "version": "1.0.0",
+  "description": "Fairlane DEX batch coordinator service",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src/**/*.ts",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.18.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.12",
+    "eslint": "^9.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "fairlane",
+    "dex",
+    "batch-auction",
+    "solana",
+    "coordinator"
+  ],
+  "author": "Fairlane Team",
+  "license": "MIT"
+}
